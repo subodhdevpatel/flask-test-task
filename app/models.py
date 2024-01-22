@@ -19,6 +19,12 @@ class Book(db.Model):
     author = db.relationship("Author", backref="books")
 
 
+class History(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    book_id = db.Column(db.Integer, db.ForeignKey("book.id"), nullable=False)
+    quantity = db.Column(db.String, nullable=False)
+    date = db.Column(db.DateTime, default=datetime.utcnow)
+
 class Storing(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     book_id = db.Column(db.Integer, db.ForeignKey("book.id"), nullable=False)

@@ -390,14 +390,37 @@ def get_history():
     query = History.query
     if filters:
         query = query.filter(*filters)
-
+    
     result = []
     history = query.all()
-    book = Book.query.get(book_key)
-    result.append(
+
+    first_record = query.order_by(History.id.asc()).first()
+    last_record = Storing.query.filter_by(book_id=book_key).first()
+
+    if book_key:
+        books = Book.query.get(book_key)
+        result.append(
         {
-            "book": {"key": book.id, "title": book.title, "barcode": book.barcode},
+            "start_balance": first_record.quantity,
+            "end_balance": last_record.quantity,
+            "book": {"key": books.id, "title": books.title, "barcode": books.barcode},
             "history": [{"date": entry.date, "quantity": int(entry.quantity)} for entry in history ]
         }
     )
+    else:
+        books = Book.query.all()
+        result.append({
+            "book": [
+                {
+                    "key": book.id,
+                    "title": book.title,
+                    "barcode": book.barcode,
+                    "start_balance": History.query.filter_by(book_id=book.id).order_by(History.id.asc()).first().quantity,
+                    "end_balance": Storing.query.filter_by(book_id=book.id).order_by(Storing.id.desc()).first().quantity,
+                    "history": [
+                        {"date": entry.date, "quantity": int(entry.quantity)} for entry in book.history
+                    ] if hasattr(book, 'history') else []
+                } for book in books
+            ]
+        })
     return jsonify(result)

@@ -35,7 +35,15 @@ def add_author():
     """
     data = request.get_json()
 
+    # Validate payload keys
+    required_keys = {"name", "birth_date"}
+    if not data or not all(key in data for key in required_keys):
+        return jsonify({"error": "Missing required keys in payload"}), 422
+
     # Convert the input birth_date string to a datetime.date object
+    if not data['birth_date'] or not data['name']:
+        return jsonify({"error": "required field value should not be null"}), 422
+    
     birth_date = datetime.strptime(data["birth_date"], '%Y-%m-%d').date()
 
     if birth_date <= datetime(1900, 1, 1).date():
@@ -288,13 +296,15 @@ def bulk_upload_leftovers():
     try:
         if file.filename.endswith('.xlsx'):
             df = pd.read_excel(file)
+            books = Book.query.all()
+            barcodes = [book.name for book in books]
             for index, row in df.iterrows():
                 barcode = str(row['barcode']).strip() if not pd.isna(row['barcode']) else None
                 quantity = row['quantity']
                 if not barcode:
                     continue
-                book = Book.query.filter_by(barcode=barcode).first()
-                if not book:
+                # book = Book.query.filter_by(barcode=barcode).first()
+                if barcode not in barcodes:
                     return jsonify({"error": f"Book not found for barcode '{barcode}' at row {index + 2}"}), 404
                 storing = Storing.query.filter_by(book_id=book.id).first()
                 if not is_valid_quantity(quantity):
@@ -377,8 +387,11 @@ def get_history():
     """
     start_date = request.args.get("start")
     end_date = request.args.get("end")
-    book_key = request.args.get("book")
 
+    if "book" in request.args and not request.args.get("book"):
+        return jsonify({"error": "Provide the book key"}), 500
+
+    book_key = request.args.get("book")
     filters = []
     if start_date:
         filters.append(History.date >= start_date)
